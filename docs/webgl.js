@@ -1,139 +1,119 @@
 var gl;
-var squareVerticesBuffer;
 var mvMatrix;
 var vMatrix;
 var shaderProgram;
 var vertexPositionAttribute;
+var vertexColorAttribute;
 var perspectiveMatrix;
-
+var context;
 //
 // start
 //
-// Called when the canvas is created to get the ball rolling.
-// Figuratively, that is. There's nothing moving in this demo.
-//
 function start() {
 
-  var context = new WgContext("glcanvas");
+  context = new WgContext("glcanvas");
   gl = context.getContext();
 
-  // Only continue if WebGL is available and working
   if (!gl) {
     return;
   }
 
-  // Initialize the shaders; this is where all the lighting for the
-  // vertices and so forth is established.
-
   initShaders();
 
-  // Here's where we call the routine that builds all the objects
-  // we'll be drawing.
+  initSquareBuffers();
 
-  initBuffers();
+  document.addEventListener("keydown", onKeyDownListenr);
+  document.addEventListener("keyup", onKeyUpListenr);
 
-  // Set up to draw the scene periodically.
-
-  setInterval(drawScene, 15);
+  drawScene();
 }
 
-//
-// initBuffers
-//
-// Initialize the buffers we'll need. For this demo, we just have
-// one object -- a simple two-dimensional square.
-//
-function initBuffers() {
+function update() {
 
-  // Create a buffer for the square's vertices.
+  if(keyPless[39]) {
+    x+=0.01;
+  }
+  if(keyPless[37]) {
+    x-=0.01;
+  }
+  if(keyPless[38]) {
+    y+=0.01;
+  }
+  if(keyPless[40]) {
+    y-=0.01;
+  }
 
-  squareVerticesBuffer = gl.createBuffer();
-
-  // Select the squareVerticesBuffer as the one to apply vertex
-  // operations to from here out.
-
-  gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesBuffer);
-
-  // Now create an array of vertices for the square. Note that the Z
-  // coordinate is always 0 here.
-
-  var vertices = [
-    1.0,  1.0, -1.0, // 右上
-    -1.0, 1.0, -1.0, // 左上
-    1.0,  1.0,  1.0, // 右下
-    -1.0, 1.0,  1.0, // 左下
-
-    1.0,  -1.0, 1.0, // 右下前
-    -1.0, -1.0, 1.0, // 左下前
-
-    1.0,  -1.0, 1.0,
-    -1.0, 1.0, 1.0,
-    1.0,  -1.0, -1.0,
-    1.0, 1.0, -1.0,
-    
-  ];
-
-  // Now pass the list of vertices into WebGL to build the shape. We
-  // do this by creating a Float32Array from the JavaScript array,
-  // then use it to fill the current vertex buffer.
-
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+  refreshKeycode();
 }
 
+var keyTrig = {};
+var keyPless = {};
+var keyRelease = {};
+function onKeyDownListenr(e) {
+  keyTrig[e.keyCode] = true;
+  keyPless[e.keyCode] = true;
+  switch(e.keyCode) {
+    case 37:
+    case 38:
+    case 39:
+    case 40:
+    e.preventDefault();
+    break;
+  }
+}
+
+function onKeyUpListenr(e) {
+  keyPless[e.keyCode] = false;
+  keyRelease[e.keyCode] = true;
+}
+
+function refreshKeycode() {
+  delete keyTrig;
+  delete keyRelease;
+  keyTrig = {};
+  keyRelease = {};
+}
+
+var x = 0;
+var y = 0;
 //
 // drawScene
 //
-// Draw the scene.
-//
 function drawScene() {
-  // Clear the canvas before we start drawing on it.
+  requestAnimationFrame(drawScene);
 
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  update();
 
-  // Establish the perspective with which we want to view the
-  // scene. Our field of view is 45 degrees, with a width/height
-  // ratio of 640:480, and we only want to see objects between 0.1 units
-  // and 100 units away from the camera.
+  context.clearBuffer();
 
   perspectiveMatrix = makePerspective(45, 640.0/480.0, 0.1, 100.0);
-  vMatrix = makeLookAt(5,5,5,0,0,0,0,1,0);
-
-  // Set the drawing position to the "identity" point, which is
-  // the center of the scene.
+  vMatrix = makeLookAt(0,0,5,0,0,0,0,1,0);
 
   loadIdentity();
-
-  // Now move the drawing position a bit to where we want to start
-  // drawing the square.
-
-  mvTranslate([-0.0, 0.0, -0.0]);
-
-  // Draw the square by binding the array buffer to the square's vertices
-  // array, setting attributes, and pushing it to GL.
+  mvTranslate([x, y, -0.0]);
 
   gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesBuffer);
-  gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
+  var stride = 4*(3+3);
+  gl.vertexAttribPointer(vertexColorAttribute, 3, gl.FLOAT, false, stride, 0);
+  gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, stride, 4*3);
   setMatrixUniforms();
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 10);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
 
 //
 // initShaders
 //
-// Initialize the shaders, so WebGL knows how to light our scene.
-//
 function initShaders() {
-  var fragmentShader = getShader(gl, "shader-fs");
-  var vertexShader = getShader(gl, "shader-vs");
+  var vertexShaderSource = getShaderString(document.getElementById("shader-vs"));
+  var fragmentShaderSource = getShaderString(document.getElementById("shader-fs"));
 
-  // Create the shader program
+  var vertexShader = context.createVertexShader(vertexShaderSource);
+  var fragmentShader = context.createFragmentShader(fragmentShaderSource);
 
   shaderProgram = gl.createProgram();
   gl.attachShader(shaderProgram, vertexShader);
   gl.attachShader(shaderProgram, fragmentShader);
   gl.linkProgram(shaderProgram);
-
-  // If creating the shader program failed, alert
 
   if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
     alert("Unable to initialize the shader program: " + gl.getProgramInfoLog(shader));
@@ -141,30 +121,15 @@ function initShaders() {
 
   gl.useProgram(shaderProgram);
 
-  vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+  vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+  gl.enableVertexAttribArray(vertexColorAttribute);
+  vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
   gl.enableVertexAttribArray(vertexPositionAttribute);
 }
 
-//
-// getShader
-//
-// Loads a shader program by scouring the current document,
-// looking for a script with the specified ID.
-//
-function getShader(gl, id) {
-  var shaderScript = document.getElementById(id);
-
-  // Didn't find an element with the specified ID; abort.
-
-  if (!shaderScript) {
-    return null;
-  }
-
-  // Walk through the source element's children, building the
-  // shader source string.
-
+function getShaderString(element) {
   var theSource = "";
-  var currentChild = shaderScript.firstChild;
+  var currentChild = element.firstChild;
 
   while(currentChild) {
     if (currentChild.nodeType == 3) {
@@ -173,36 +138,7 @@ function getShader(gl, id) {
 
     currentChild = currentChild.nextSibling;
   }
-
-  // Now figure out what type of shader script we have,
-  // based on its MIME type.
-
-  var shader;
-
-  if (shaderScript.type == "x-shader/x-fragment") {
-    shader = gl.createShader(gl.FRAGMENT_SHADER);
-  } else if (shaderScript.type == "x-shader/x-vertex") {
-    shader = gl.createShader(gl.VERTEX_SHADER);
-  } else {
-    return null;  // Unknown shader type
-  }
-
-  // Send the source to the shader object
-
-  gl.shaderSource(shader, theSource);
-
-  // Compile the shader program
-
-  gl.compileShader(shader);
-
-  // See if it compiled successfully
-
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    alert("An error occurred compiling the shaders: " + gl.getShaderInfoLog(shader));
-    return null;
-  }
-
-  return shader;
+  return theSource;
 }
 
 //
@@ -231,3 +167,24 @@ function setMatrixUniforms() {
   var mvUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
   gl.uniformMatrix4fv(mvUniform, false, new Float32Array(mvMatrix.flatten()));
 }
+
+////////////////
+// initBuffers
+var squareVerticesBuffer;
+function initSquareBuffers() {
+  var squareBuffer = [
+     1.0,  1.0, 0.0,
+     1.0,  0.0, 0.0,
+
+    -1.0,  1.0, 0.0,
+     0.0,  1.0, 0.0,
+
+     1.0, -1.0, 0.0,
+     0.0,  0.0, 1.0,
+
+    -1.0, -1.0, 0.0,
+     1.0,  1.0, 1.0,
+  ];
+  squareVerticesBuffer = context.createVertexBuffer(squareBuffer);
+}
+

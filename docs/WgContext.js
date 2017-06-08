@@ -10,8 +10,8 @@ class WgContext {
    */
   constructor(canvasId) {
     this._canvas = document.getElementById(canvasId);
-    this._context = this._canvas.getContext("experimental-webgl");
-    if (!this._context) {
+    this._gl = this._canvas.getContext("experimental-webgl");
+    if (!this._gl) {
       alert("Unable to initialize WebGL. Your browser may not support it.");
     }
 
@@ -23,10 +23,10 @@ class WgContext {
    * 描画の基本設定
    */
   _setRenderState() {
-    this._context.clearColor(0.0, 0.0, 0.0, 1.0);
-    this._context.clearDepth(1.0);
-    this._context.enable(this._context.DEPTH_TEST);
-    this._context.depthFunc(this._context.LEQUAL);
+    this._gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    this._gl.clearDepth(1.0);
+    this._gl.enable(this._gl.DEPTH_TEST);
+    this._gl.depthFunc(this._gl.LEQUAL);
   }
 
   /**
@@ -35,7 +35,48 @@ class WgContext {
    * @return {any} コンテキスト
    */
   getContext() {
-    return this._context;
+    return this._gl;
   }
+
+  /**
+   * createVertexBuffer
+   * 頂点バッファ作成
+   * @return {any} VBO
+   */
+  createVertexBuffer(vertexes) {
+    var vbo = this._gl.createBuffer();
+    this._gl.bindBuffer(this._gl.ARRAY_BUFFER, vbo);
+    this._gl.bufferData(this._gl.ARRAY_BUFFER, new Float32Array(vertexes), this._gl.STATIC_DRAW);
+    return vbo;
+  }
+
+  /**
+   * clearBuffer
+   * バッファクリア
+   */
+  clearBuffer() {
+    this._gl.clear(this._gl.COLOR_BUFFER_BIT | this._gl.DEPTH_BUFFER_BIT);
+  }
+
+  createShader(shaderType, shaderSource) {
+    var shader = this._gl.createShader(shaderType);
+    this._gl.shaderSource(shader, shaderSource);
+    this._gl.compileShader(shader);
+
+    if (!this._gl.getShaderParameter(shader, this._gl.COMPILE_STATUS)) {
+      alert("An error occurred compiling the shaders: " + this._gl.getShaderInfoLog(shader));
+       return null;
+    }
+
+    return shader;
+  }
+
+  createVertexShader(shaderSource) {
+    return this.createShader(this._gl.VERTEX_SHADER, shaderSource);
+  }
+  createFragmentShader(shaderSource) {
+    return this.createShader(this._gl.FRAGMENT_SHADER, shaderSource);
+  }
+
 }
 
