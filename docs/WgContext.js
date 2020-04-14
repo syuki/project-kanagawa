@@ -58,6 +58,11 @@ class WgContext {
     this._gl.clear(this._gl.COLOR_BUFFER_BIT | this._gl.DEPTH_BUFFER_BIT);
   }
 
+  /**
+   * createShader
+   * @param {*} shaderType 
+   * @param {string} shaderSource 
+   */
   createShader(shaderType, shaderSource) {
     var shader = this._gl.createShader(shaderType);
     this._gl.shaderSource(shader, shaderSource);
@@ -71,12 +76,20 @@ class WgContext {
     return shader;
   }
 
+  /**
+   * createVertexShader
+   * @param {string} shaderSource 
+   */
   createVertexShader(shaderSource) {
     return this.createShader(this._gl.VERTEX_SHADER, shaderSource);
   }
+
+  /**
+   * createFragmentShader
+   * @param {string} shaderSource 
+   */
   createFragmentShader(shaderSource) {
     return this.createShader(this._gl.FRAGMENT_SHADER, shaderSource);
   }
 
 }
-
